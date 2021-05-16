@@ -2,6 +2,7 @@
 #include <Library/UefiLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/PrintLib.h>
+#include <Library/MemoryAllocationLib.h>
 #include <Protocol/LoadedImage.h>
 #include <Protocol/SimpleFileSystem.h>
 #include <Protocol/DiskIo2.h>
@@ -16,6 +17,10 @@ struct MemoryMap {
   UINTN descriptor_size;
   UINT32 descriptor_version;
 };
+
+void Halt(void) {
+  while (1) __asm__("hlt");
+}
 
 EFI_STATUS GetMemoryMap(struct MemoryMap *map) {
   if (map->buffer == NULL) {
@@ -109,7 +114,33 @@ EFI_STATUS OpenRootDir(EFI_HANDLE image_handle, EFI_FILE_PROTOCOL **root) {
   return EFI_SUCCESS;
 }
 
+EFI_STATUS OpenGOP(EFI_HANDLE image_handle, EFI_GRAPHICS_OUTPUT_PROTOCOL **gop) {
+  UINTN num_gop_handles = 0;
+  EFI_HANDLE *gop_handles = NULL;
+
+  gBS->LocateHandleBuffer(
+    ByProtocol,
+    &gEfiGraphicsOutputProtocolGuid,
+    NULL,
+    &num_gop_handles,
+    &gop_handles
+  );
+
+  gBS->OpenProtocol(
+    gop_handles[0],
+    &gEfiGraphicsOutputProtocolGuid,
+    (VOID **)gop,
+    image_handle,
+    NULL,
+    EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
+  );
+
+  FreePool(gop_handles);
+  return EFI_SUCCESS;
+}
+
 EFI_STATUS EFIAPI UefiMain(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table) {
+  EFI_STATUS status;
   Print(L"Hello, World.\n");
   Print(L"This is the beginning of my boot loader!\n");
 
@@ -127,6 +158,10 @@ EFI_STATUS EFIAPI UefiMain(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_tab
   SaveMemoryMap(&memmap, memmap_file);
   memmap_file->Close(memmap_file);
 
+  // Prepare Graphic Output Protocol
+  EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
+  OpenGOP(image_handle, &gop);
+
   // Load kernel file
   EFI_FILE_PROTOCOL *kernel_file;
   root_dir->Open(root_dir, &kernel_file, L"\\kernel.elf", EFI_FILE_MODE_READ, 0);
@@ -139,31 +174,35 @@ EFI_STATUS EFIAPI UefiMain(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_tab
   UINTN kernel_file_size = file_info->FileSize;
 
   EFI_PHYSICAL_ADDRESS kernel_base_addr = 0x100000;
-  gBS->AllocatePages(AllocateAddress, EfiLoaderData, (kernel_file_size + 0xfff) / 0x1000, &kernel_base_addr);
+  status = gBS->AllocatePages(AllocateAddress, EfiLoaderData, (kernel_file_size + 0xfff) / 0x1000, &kernel_base_addr);
+  if (EFI_ERROR(status)) {
+    Print(L"Failed to allocate pages: %r\n", status);
+    Halt();
+  }
+
   kernel_file->Read(kernel_file, &kernel_file_size, (VOID *) kernel_base_addr);
   Print(L"Kernel: 0x%0lx (%lu bytes)\n", kernel_base_addr, kernel_file_size);
 
   // Stop boot service
-  EFI_STATUS status;
   status = gBS->ExitBootServices(image_handle, memmap.map_key);
   if (EFI_ERROR(status)) {
     status = GetMemoryMap(&memmap);
     if (EFI_ERROR(status)) {
       Print(L"Failed to get memory map: %r\n", status);
-      while (1);
+      Halt();
     }
     status = gBS->ExitBootServices(image_handle, memmap.map_key);
     if (EFI_ERROR(status)) {
       Print(L"Could not exit boot service: %r\n", status);
-      while (1);
+      Halt();
     }
   }
 
   // Start kernel
   UINT64 entry_addr = *(UINT64 *)(kernel_base_addr + 24);
-  typedef void EntryPointType(void);
+  typedef void EntryPointType(UINT64, UINT64);
   EntryPointType *entry_point = (EntryPointType *) entry_addr;
-  entry_point();
+  entry_point(gop->Mode->FrameBufferBase, gop->Mode->FrameBufferSize);
 
   Print(L"All done\n");
 
