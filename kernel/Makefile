@@ -1,5 +1,5 @@
 TARGET = kernel.elf
-OBJS = main.o graphics.o hankaku.o
+OBJS = main.o graphics.o font.o hankaku.o
 
 CXXFLAGS += -O2 --target=x86_64-elf -ffreestanding -mno-red-zone -fno-exceptions -fno-rtti -std=c++17
 LDFLAGS += --entry KernelMain -z norelro --image-base 0x100000 --static

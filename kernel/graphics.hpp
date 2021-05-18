@@ -1,3 +1,5 @@
+#pragma once
+
 #include "frame_buffer_config.hpp"
 
 struct PixelColor {
