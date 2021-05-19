@@ -5,10 +5,7 @@
 #include "font.hpp"
 #include "frame_buffer_config.hpp"
 #include "graphics.hpp"
-
-void *operator new(size_t size, void *buf) {
-  return buf;
-}
+#include "pci.hpp"
 
 void operator delete(void *obj) noexcept {
 }
@@ -53,7 +50,20 @@ extern "C" void KernelMain(const FrameBufferConfig &frame_buffer_config) {
   DrawRectangle(*pixel_writer, {10, kFrameHeight - 40}, {30, 30}, {160, 160, 160});
 
   console = new(console_buf) Console(*pixel_writer, kDesktopBGColor, kDesktopFGColor);
-  printk("Hello World!");
+  printk("Hello World!\n");
+
+  auto err = pci::ScanAllBus();
+  printk("Scan All Bus: %s\n", err.Name());
+
+  for (int i = 0; i < pci::num_device; ++i) {
+    const auto &dev = pci::devices[i];
+    auto vendor_id = pci::ReadVendorId(dev.bus, dev.device, dev.function);
+    auto class_code = pci::ReadClassCode(dev.bus, dev.device, dev.function);
+    printk(
+      "%d.%d.%d: vend %04x, class %08x, head %02x\n",
+      dev.bus, dev.device, dev.function, vendor_id, class_code, dev.header_type
+    );
+  }
 
   while (1) __asm__("hlt");
 }
