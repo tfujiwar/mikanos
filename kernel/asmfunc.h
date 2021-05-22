@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstdint>
+#include <stdint.h>
 
 extern "C" {
   void IoOut32(uint32_t addr, uint32_t data);

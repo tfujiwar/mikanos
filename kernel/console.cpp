@@ -1,4 +1,5 @@
 #include <cstring>
+
 #include "console.hpp"
 #include "font.hpp"
 
@@ -10,7 +11,7 @@ void Console::PutString(const char *s) {
     if (*s == '\n') {
       NewLine();
     } else if (cursor_column_ < kColumns - 1) {
-      WriteAscii(writer_, cursor_column_ * 8, cursor_row_ * 16, *s, bg_color_);
+      WriteAscii(writer_, cursor_column_ * 8, cursor_row_ * 16, *s, fg_color_);
       buffer_[cursor_row_][cursor_column_] = *s;
       ++cursor_column_;
     }
