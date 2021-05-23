@@ -5,10 +5,12 @@
 #include <numeric>
 #include <vector>
 
+#include "asmfunc.h"
 #include "console.hpp"
 #include "font.hpp"
 #include "frame_buffer_config.hpp"
 #include "graphics.hpp"
+#include "interrupt.hpp"
 #include "logger.hpp"
 #include "mouse.hpp"
 #include "pci.hpp"
@@ -32,8 +34,20 @@ PixelWriter *pixel_writer;
 char mouse_cursor_buf[sizeof(MouseCursor)];
 MouseCursor *mouse_cursor;
 
+usb::xhci::Controller *xhc;
+
 void MouseObserver(int8_t displacement_x, int8_t displacement_y) {
   mouse_cursor->MoveRelative({displacement_x, displacement_y});
+}
+
+__attribute__((interrupt))
+void IntHandlerXHCI(InterruptFrame *frame) {
+  while (xhc->PrimaryEventRing()->HasFront()) {
+    if (auto err = ProcessEvent(*xhc)) {
+      Log(kError, "failed to process event: %s at %s:%d\n", err.Name(), err.File(), err.Line());
+    }
+  }
+  NotifyEndOfInterrupt();
 }
 
 int printk(const char *format, ...) {
@@ -71,7 +85,8 @@ extern "C" void KernelMain(const FrameBufferConfig &frame_buffer_config) {
   DrawRectangle(*pixel_writer, {10, kFrameHeight - 40}, {30, 30}, {160, 160, 160});
 
   console = new(console_buf) Console(*pixel_writer, kDesktopFGColor, kDesktopBGColor);
-  printk("Hello World!\n");
+  mouse_cursor = new(mouse_cursor_buf) MouseCursor{pixel_writer, kDesktopBGColor, {300, 200}};
+  SetLogLevel(kWarn);
 
   // Scan PCI devices
   auto err = pci::ScanAllBus();
@@ -104,6 +119,19 @@ extern "C" void KernelMain(const FrameBufferConfig &frame_buffer_config) {
     );
   }
 
+  // Set mouse interrupt
+  const uint16_t cs = GetCS();
+  SetIDTEntry(idt[InterruptVector::kXHCI], MakeIDTAttr(DescriptorType::kInterruptGate, 0),
+              reinterpret_cast<uint64_t>(IntHandlerXHCI), cs);
+
+  LoadIDT(sizeof(idt) - 1, reinterpret_cast<uintptr_t>(&idt[0]));
+
+  const uint8_t bsp_local_apic_id = *reinterpret_cast<const uint32_t *>(0xfee00020) >> 24;
+  pci::ConfigureMSIFixedDestination(
+      *xhc_dev, bsp_local_apic_id,
+      pci::MSITriggerMode::kLevel, pci::MSIDeliveryMode::kFixed,
+      InterruptVector::kXHCI, 0);
+
   // Initialize xHC
   const WithError<uint64_t> xhc_bar = pci::ReadBar(*xhc_dev, 0);
   Log(kDebug, "ReadBar: %s\n", xhc_bar.error.Name());
@@ -117,6 +145,9 @@ extern "C" void KernelMain(const FrameBufferConfig &frame_buffer_config) {
   Log(kInfo, "xHC starting\n");
   xhc.Run();
 
+  ::xhc = &xhc;
+  __asm__("sti");
+
   // Connect to USB port
   usb::HIDMouseDriver::default_observer = MouseObserver;
 
@@ -129,17 +160,6 @@ extern "C" void KernelMain(const FrameBufferConfig &frame_buffer_config) {
         Log(kError, "failed to configure port: %s at %s:%d\n", err.Name(), err.File(), err.Line());
         continue;
       }
-    }
-  }
-
-  // Polling mouse event
-  mouse_cursor = new(mouse_cursor_buf) MouseCursor{
-    pixel_writer, kDesktopBGColor, {300, 200}
-  };
-
-  while (1) {
-    if (auto err = ProcessEvent(xhc)) {
-      Log(kError, "failed to process event: %s at %s:%d\n", err.Name(), err.File(), err.Line());
     }
   }
 
