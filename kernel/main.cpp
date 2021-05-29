@@ -14,6 +14,7 @@
 #include "logger.hpp"
 #include "mouse.hpp"
 #include "pci.hpp"
+#include "queue.hpp"
 
 #include "usb/classdriver/mouse.hpp"
 #include "usb/device.hpp"
@@ -36,17 +37,21 @@ MouseCursor *mouse_cursor;
 
 usb::xhci::Controller *xhc;
 
+struct Message {
+  enum Type {
+    kInterruptXHCI,
+  } type;
+};
+
+ArrayQueue<Message> *main_queue;
+
 void MouseObserver(int8_t displacement_x, int8_t displacement_y) {
   mouse_cursor->MoveRelative({displacement_x, displacement_y});
 }
 
 __attribute__((interrupt))
 void IntHandlerXHCI(InterruptFrame *frame) {
-  while (xhc->PrimaryEventRing()->HasFront()) {
-    if (auto err = ProcessEvent(*xhc)) {
-      Log(kError, "failed to process event: %s at %s:%d\n", err.Name(), err.File(), err.Line());
-    }
-  }
+  main_queue->Push(Message{Message::kInterruptXHCI});
   NotifyEndOfInterrupt();
 }
 
@@ -84,9 +89,14 @@ extern "C" void KernelMain(const FrameBufferConfig &frame_buffer_config) {
   FillRectangle(*pixel_writer, {0, kFrameHeight - 50}, {kFrameWidth / 5, 50}, {80, 80, 80});
   DrawRectangle(*pixel_writer, {10, kFrameHeight - 40}, {30, 30}, {160, 160, 160});
 
+  SetLogLevel(kWarn);
+
   console = new(console_buf) Console(*pixel_writer, kDesktopFGColor, kDesktopBGColor);
   mouse_cursor = new(mouse_cursor_buf) MouseCursor{pixel_writer, kDesktopBGColor, {300, 200}};
-  SetLogLevel(kWarn);
+
+  std::array<Message, 32> main_queue_data;
+  ArrayQueue<Message> main_queue{main_queue_data};
+  ::main_queue = &main_queue;
 
   // Scan PCI devices
   auto err = pci::ScanAllBus();
@@ -146,7 +156,6 @@ extern "C" void KernelMain(const FrameBufferConfig &frame_buffer_config) {
   xhc.Run();
 
   ::xhc = &xhc;
-  __asm__("sti");
 
   // Connect to USB port
   usb::HIDMouseDriver::default_observer = MouseObserver;
@@ -163,5 +172,28 @@ extern "C" void KernelMain(const FrameBufferConfig &frame_buffer_config) {
     }
   }
 
-  while (1) __asm__("hlt");
+  // Event loop
+  while (1) {
+    __asm__("cli");
+    if (main_queue.Count() == 0) {
+      __asm__("sti\n\thlt");
+      continue;
+    }
+
+    Message msg = main_queue.Front();
+    main_queue.Pop();
+    __asm__("sti");
+
+    switch (msg.type) {
+    case Message::kInterruptXHCI:
+      while (xhc.PrimaryEventRing()->HasFront()) {
+        if (auto err = ProcessEvent(xhc)) {
+          Log(kError, "Error while ProcessEvent: %s at %s:%d\n", err.Name(), err.File(), err.Line());
+        }
+      }
+      break;
+    default:
+      Log(kError, "Unknown message type: %d\n", msg.type);
+    }
+  }
 }
