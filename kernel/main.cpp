@@ -12,6 +12,7 @@
 #include "graphics.hpp"
 #include "interrupt.hpp"
 #include "logger.hpp"
+#include "memory_map.hpp"
 #include "mouse.hpp"
 #include "pci.hpp"
 #include "queue.hpp"
@@ -68,7 +69,9 @@ int printk(const char *format, ...) {
   return result;
 }
 
-extern "C" void KernelMain(const FrameBufferConfig &frame_buffer_config) {
+extern "C" void KernelMain(const FrameBufferConfig &frame_buffer_config,
+                           const MemoryMap &memory_map) {
+
   switch (frame_buffer_config.pixel_format) {
   case kPixelRGBResv8BitPerColor:
     pixel_writer = new(pixel_writer_buf) RGBResv8BitPerColorPixelWriter(frame_buffer_config);
@@ -97,6 +100,31 @@ extern "C" void KernelMain(const FrameBufferConfig &frame_buffer_config) {
   std::array<Message, 32> main_queue_data;
   ArrayQueue<Message> main_queue{main_queue_data};
   ::main_queue = &main_queue;
+
+  // Print Memory Map
+  const std::array<MemoryType, 3> available_memory_types{
+    MemoryType::kEfiBootServicesCode,
+    MemoryType::kEfiBootServicesData,
+    MemoryType::kEfiConventionalMemory,
+  };
+
+  printk("memory_map: %p\n", &memory_map);
+  for (uintptr_t iter = reinterpret_cast<uintptr_t>(memory_map.buffer);
+       iter < reinterpret_cast<uintptr_t>(memory_map.buffer) + memory_map.map_size;
+       iter += memory_map.descriptor_size) {
+    auto desc = reinterpret_cast<MemoryDescriptor *>(iter);
+
+    for (int i = 0; i < available_memory_types.size(); ++i) {
+      if (desc->type == available_memory_types[i]) {
+        printk("type = %u, phys = %08lx - %08lx, pages = %lu, attr = %08lx\n",
+               desc->type,
+               desc->physical_start,
+               desc->physical_start + desc->number_of_pages * 4096 - 1,
+               desc->number_of_pages,
+               desc->attribute);
+      }
+    }
+  }
 
   // Scan PCI devices
   auto err = pci::ScanAllBus();
@@ -150,8 +178,10 @@ extern "C" void KernelMain(const FrameBufferConfig &frame_buffer_config) {
   Log(kDebug, "xHC mmio_base: %08lx\n", xhc_mmio_base);
 
   usb::xhci::Controller xhc{xhc_mmio_base};
-  err = xhc.Initialize();
-  Log(kDebug, "xhc.Initialize: %s\n", err.Name());
+  {
+    Error err = xhc.Initialize();
+    Log(kDebug, "xhc.Initialize: %s\n", err.Name());
+  }
   Log(kInfo, "xHC starting\n");
   xhc.Run();
 
