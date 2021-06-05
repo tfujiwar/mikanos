@@ -11,6 +11,7 @@
 #include "frame_buffer_config.hpp"
 #include "graphics.hpp"
 #include "interrupt.hpp"
+#include "layer.hpp"
 #include "logger.hpp"
 #include "memory_manager.hpp"
 #include "memory_map.hpp"
@@ -36,9 +37,6 @@ Console *console;
 char pixel_writer_buf[sizeof(RGBResv8BitPerColorPixelWriter)];
 PixelWriter *pixel_writer;
 
-char mouse_cursor_buf[sizeof(MouseCursor)];
-MouseCursor *mouse_cursor;
-
 char memory_manager_buf[sizeof(BitmapMemoryManager)];
 BitmapMemoryManager *memory_manager;
 
@@ -52,8 +50,11 @@ struct Message {
 
 ArrayQueue<Message> *main_queue;
 
+unsigned int mouse_layer_id;
+
 void MouseObserver(int8_t displacement_x, int8_t displacement_y) {
-  mouse_cursor->MoveRelative({displacement_x, displacement_y});
+  layer_manager->MoveRelative(mouse_layer_id, {displacement_x, displacement_y});
+  layer_manager->Draw();
 }
 
 __attribute__((interrupt))
@@ -148,8 +149,8 @@ extern "C" void KernelMainNewStack(
 
   SetLogLevel(kWarn);
 
-  console = new(console_buf) Console(*pixel_writer, kDesktopFGColor, kDesktopBGColor);
-  mouse_cursor = new(mouse_cursor_buf) MouseCursor{pixel_writer, kDesktopBGColor, {300, 200}};
+  console = new(console_buf) Console(kDesktopFGColor, kDesktopBGColor);
+  console->SetWriter(pixel_writer);
 
   std::array<Message, 32> main_queue_data;
   ArrayQueue<Message> main_queue{main_queue_data};
@@ -255,6 +256,38 @@ extern "C" void KernelMainNewStack(
       }
     }
   }
+
+  // Setup Layers
+  auto bgwindow = std::make_shared<Window>(kFrameWidth, kFrameHeight);
+  auto bgwriter = bgwindow->Writer();
+
+  FillRectangle(*bgwriter, {0, 0}, {kFrameWidth, kFrameHeight - 50}, kDesktopBGColor);
+  FillRectangle(*bgwriter, {0, kFrameHeight - 50}, {kFrameWidth, 50}, {1, 8, 17});
+  FillRectangle(*bgwriter, {0, kFrameHeight - 50}, {kFrameWidth / 5, 50}, {80, 80, 80});
+  DrawRectangle(*bgwriter, {10, kFrameHeight - 40}, {30, 30}, {160, 160, 160});
+
+  console->SetWriter(bgwriter);
+
+  auto mouse_window = std::make_shared<Window>(kMouseCursorWidth, kMouseCursorHeight);
+  mouse_window->SetTransparentColor(kMouseTransparentColor);
+  DrawMouseCursor(mouse_window->Writer(), {0, 0});
+
+  layer_manager = new LayerManager;
+  layer_manager->SetWriter(pixel_writer);
+
+  auto bg_layer_id = layer_manager->NewLayer()
+    .SetWindow(bgwindow)
+    .Move({0, 0})
+    .ID();
+
+  mouse_layer_id = layer_manager->NewLayer()
+    .SetWindow(mouse_window)
+    .Move({200, 200})
+    .ID();
+
+  layer_manager->UpDown(bg_layer_id, 0);
+  layer_manager->UpDown(mouse_layer_id, 1);
+  layer_manager->Draw();
 
   // Event loop
   while (1) {
