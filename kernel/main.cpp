@@ -20,6 +20,7 @@
 #include "pci.hpp"
 #include "queue.hpp"
 #include "segment.hpp"
+#include "timer.hpp"
 
 #include "usb/classdriver/mouse.hpp"
 #include "usb/device.hpp"
@@ -54,7 +55,11 @@ unsigned int mouse_layer_id;
 
 void MouseObserver(int8_t displacement_x, int8_t displacement_y) {
   layer_manager->MoveRelative(mouse_layer_id, {displacement_x, displacement_y});
+  StartLAPICTimer();
   layer_manager->Draw();
+  auto elapsed = LAPICTimerElapsed();
+  StopLAPICTimer();
+  Log(kWarn, "elapsed: %u\n", elapsed);
 }
 
 __attribute__((interrupt))
@@ -148,6 +153,7 @@ extern "C" void KernelMainNewStack(
   DrawRectangle(*pixel_writer, {10, kFrameHeight - 40}, {30, 30}, {160, 160, 160});
 
   SetLogLevel(kWarn);
+  InitializeLAPICTimer();
 
   console = new(console_buf) Console(kDesktopFGColor, kDesktopBGColor);
   console->SetWriter(pixel_writer);
