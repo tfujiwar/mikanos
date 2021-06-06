@@ -28,8 +28,8 @@ void Window::DrawTo(FrameBuffer &dst, Vector2D<int> pos) {
   const auto tc = transparent_color_.value();
   auto &writer = dst.Writer();
 
-  for (int y = 0; y < Height(); ++y) {
-    for (int x = 0; x < Width(); ++x) {
+  for (int y = std::max(0, 0 - pos.y); y < std::min(Height(), writer.Height() - pos.y); ++y) {
+    for (int x = std::max(0, 0 - pos.x); x < std::min(Width(), writer.Width() - pos.x); ++x) {
       const auto c = At(Vector2D<int>{x, y});
       if (c != tc) {
         writer.Write(pos + Vector2D<int>{x, y}, c);
@@ -38,7 +38,7 @@ void Window::DrawTo(FrameBuffer &dst, Vector2D<int> pos) {
   }
 };
 
-void Window::Move(Vector2D<int> dst_pos, const Rectangle<int> src) {
+void Window::Move(Vector2D<int> dst_pos, const Rectangle<int> &src) {
   shadow_buffer_.Move(dst_pos, src);
 }
 

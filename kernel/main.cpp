@@ -52,9 +52,19 @@ struct Message {
 ArrayQueue<Message> *main_queue;
 
 unsigned int mouse_layer_id;
+Vector2D<int> mouse_pos;
+Vector2D<int> screen_size;
 
 void MouseObserver(int8_t displacement_x, int8_t displacement_y) {
-  layer_manager->MoveRelative(mouse_layer_id, {displacement_x, displacement_y});
+  auto newpos = mouse_pos + Vector2D<int>{displacement_x, displacement_y};
+
+  newpos.x = std::min(newpos.x, screen_size.x - 1);
+  newpos.y = std::min(newpos.y, screen_size.y - 1);
+
+  mouse_pos.x = std::max(newpos.x, 0);
+  mouse_pos.y = std::max(newpos.y, 0);
+
+  layer_manager->Move(mouse_layer_id, mouse_pos);
   StartLAPICTimer();
   layer_manager->Draw();
   auto elapsed = LAPICTimerElapsed();
@@ -281,6 +291,9 @@ extern "C" void KernelMainNewStack(
     Log(kError, "failed to initialize frame buffer: %s at %s:%d\n", err.Name(), err.File(), err.Line());
   }
 
+  screen_size.x = screen.Writer().Width();
+  screen_size.y = screen.Writer().Height();
+
   console->SetWindow(bgwindow);
 
   layer_manager = new LayerManager;
@@ -295,6 +308,8 @@ extern "C" void KernelMainNewStack(
     .SetWindow(mouse_window)
     .Move({200, 200})
     .ID();
+
+  mouse_pos = {200, 200};
 
   layer_manager->UpDown(bg_layer_id, 0);
   layer_manager->UpDown(mouse_layer_id, 1);
