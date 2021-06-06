@@ -32,6 +32,12 @@ auto operator +(const Vector2D<T> &lhs, const Vector2D<U> &rhs)
   return {lhs.x + rhs.x, lhs.y + rhs.y};
 }
 
+template <typename T>
+struct Rectangle {
+  Vector2D<T> pos;
+  Vector2D<T> size;
+};
+
 class PixelWriter {
  public:
   virtual ~PixelWriter() = default;

@@ -28,7 +28,9 @@ class Window {
   Window(const Window &rhs) = delete;
   Window& operator=(const Window &rhs) = delete;
 
-  void DrawTo(FrameBuffer &dst, Vector2D<int> position);
+  void DrawTo(FrameBuffer &dst, Vector2D<int> pos);
+  void Move(Vector2D<int> dst_pos, const Rectangle<int> src);
+
   void SetTransparentColor(std::optional<PixelColor> c);
 
   WindowWriter *Writer();

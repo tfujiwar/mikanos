@@ -169,7 +169,7 @@ extern "C" void KernelMainNewStack(
     MemoryType::kEfiConventionalMemory,
   };
 
-  printk("memory_map: %p\n", &memory_map);
+  Log(kDebug, "memory_map: %p\n", &memory_map);
   for (uintptr_t iter = reinterpret_cast<uintptr_t>(memory_map.buffer);
        iter < reinterpret_cast<uintptr_t>(memory_map.buffer) + memory_map.map_size;
        iter += memory_map.descriptor_size) {
@@ -177,7 +177,7 @@ extern "C" void KernelMainNewStack(
 
     for (int i = 0; i < available_memory_types.size(); ++i) {
       if (desc->type == available_memory_types[i]) {
-        printk("type = %u, phys = %08lx - %08lx, pages = %lu, attr = %08lx\n",
+        Log(kDebug, "type = %u, phys = %08lx - %08lx, pages = %lu, attr = %08lx\n",
                desc->type,
                desc->physical_start,
                desc->physical_start + desc->number_of_pages * 4096 - 1,
@@ -189,13 +189,13 @@ extern "C" void KernelMainNewStack(
 
   // Scan PCI devices
   auto err = pci::ScanAllBus();
-  printk("Scan All Bus: %s\n", err.Name());
+  Log(kDebug, "Scan All Bus: %s\n", err.Name());
 
   for (int i = 0; i < pci::num_device; ++i) {
     const auto &dev = pci::devices[i];
     auto vendor_id = pci::ReadVendorId(dev.bus, dev.device, dev.function);
     auto class_code = pci::ReadClassCode(dev.bus, dev.device, dev.function);
-    printk(
+    Log(kDebug,
       "%d.%d.%d: vend %04x, class %08x, head %02x\n",
       dev.bus, dev.device, dev.function, vendor_id, class_code, dev.header_type
     );
@@ -281,7 +281,7 @@ extern "C" void KernelMainNewStack(
     Log(kError, "failed to initialize frame buffer: %s at %s:%d\n", err.Name(), err.File(), err.Line());
   }
 
-  console->SetWriter(bgwriter);
+  console->SetWindow(bgwindow);
 
   layer_manager = new LayerManager;
   layer_manager->SetWriter(&screen);
