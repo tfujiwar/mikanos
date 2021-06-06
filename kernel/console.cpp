@@ -12,7 +12,7 @@ void Console::PutString(const char *s) {
     if (*s == '\n') {
       NewLine();
     } else if (cursor_column_ < kColumns - 1) {
-      WriteAscii(*writer_, cursor_column_ * 8, cursor_row_ * 16, *s, fg_color_);
+      WriteAscii(*writer_, {cursor_column_ * 8, cursor_row_ * 16}, *s, fg_color_);
       buffer_[cursor_row_][cursor_column_] = *s;
       ++cursor_column_;
     }
@@ -39,7 +39,7 @@ void Console::NewLine() {
     FillRectangle(*writer_, {0, 0}, {kColumns * 8, kRows * 16}, bg_color_);
     for (int row = 0; row < kRows; ++row) {
       memcpy(buffer_[row], buffer_[row + 1], kColumns + 1);
-      WriteString(*writer_, 0, row * 16, buffer_[row], fg_color_);
+      WriteString(*writer_, {0, row * 16}, buffer_[row], fg_color_);
     }
     memset(buffer_[kRows - 1], 0, kColumns + 1);
   }
@@ -61,6 +61,6 @@ void Console::SetWindow(const std::shared_ptr<Window> &window) {
 
 void Console::Refresh() {
   for (int row = 0; row < kRows; ++row) {
-    WriteString(*writer_, 0, row * 16, buffer_[row], fg_color_);
+    WriteString(*writer_, {0, row * 16}, buffer_[row], fg_color_);
   }
 }

@@ -72,8 +72,8 @@ Error FrameBuffer::Copy(Vector2D<int> pos, const FrameBuffer &src) {
 
   const int copy_start_dst_x = std::max(pos.x, 0);
   const int copy_start_dst_y = std::max(pos.y, 0);
-  const int copy_end_dst_x = std::max(pos.x + src_width, dst_width);
-  const int copy_end_dst_y = std::max(pos.y + src_height, dst_height);
+  const int copy_end_dst_x = std::min(pos.x + src_width, dst_width);
+  const int copy_end_dst_y = std::min(pos.y + src_height, dst_height);
 
   const auto bytes_per_pixel = (bits_per_pixel + 7) / 8;
   const auto bytes_per_copy_line = bytes_per_pixel * (copy_end_dst_x - copy_start_dst_x);
