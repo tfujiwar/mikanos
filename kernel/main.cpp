@@ -65,11 +65,6 @@ void MouseObserver(int8_t displacement_x, int8_t displacement_y) {
   mouse_pos.y = std::max(newpos.y, 0);
 
   layer_manager->Move(mouse_layer_id, mouse_pos);
-  StartLAPICTimer();
-  layer_manager->Draw();
-  auto elapsed = LAPICTimerElapsed();
-  StopLAPICTimer();
-  Log(kWarn, "elapsed: %u\n", elapsed);
 }
 
 __attribute__((interrupt))
@@ -289,6 +284,11 @@ extern "C" void KernelMainNewStack(
   auto main_window = std::make_shared<Window>(160, 52, frame_buffer_config.pixel_format);
   DrawWindow(*main_window->Writer(), "Hello Window");
 
+  auto console_window = std::make_shared<Window>(
+    Console::kColumns * 8, Console::kRows * 16, frame_buffer_config.pixel_format);
+
+  console->SetWindow(console_window);
+
   FrameBuffer screen;
   if (auto err = screen.Initialize(frame_buffer_config)) {
     Log(kError, "failed to initialize frame buffer: %s at %s:%d\n", err.Name(), err.File(), err.Line());
@@ -296,8 +296,6 @@ extern "C" void KernelMainNewStack(
 
   screen_size.x = screen.Writer().Width();
   screen_size.y = screen.Writer().Height();
-
-  console->SetWindow(bgwindow);
 
   layer_manager = new LayerManager;
   layer_manager->SetWriter(&screen);
@@ -319,10 +317,16 @@ extern "C" void KernelMainNewStack(
 
   mouse_pos = {200, 200};
 
+  console->SetLayerID(layer_manager->NewLayer()
+    .SetWindow(console_window)
+    .Move({0, 0})
+    .ID());
+
   layer_manager->UpDown(bg_layer_id, 0);
-  layer_manager->UpDown(main_layer_id, 1);
-  layer_manager->UpDown(mouse_layer_id, 2);
-  layer_manager->Draw();
+  layer_manager->UpDown(console->LayerID(), 1);
+  layer_manager->UpDown(main_layer_id, 2);
+  layer_manager->UpDown(mouse_layer_id, 3);
+  layer_manager->Draw({{0, 0}, screen_size});
 
   // Event loop
   char str[128];
@@ -333,7 +337,7 @@ extern "C" void KernelMainNewStack(
     sprintf(str, "%010u", count);
     FillRectangle(*main_window->Writer(), {24, 28}, {80, 16}, {0xc6, 0xc6, 0xc6});
     WriteString(*main_window->Writer(), {24, 28}, str, {0, 0, 0});
-    layer_manager->Draw();
+    layer_manager->Draw(main_layer_id);
 
     __asm__("cli");
     if (main_queue.Count() == 0) {

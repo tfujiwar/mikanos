@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include "frame_buffer_config.hpp"
 
 struct PixelColor {
@@ -32,11 +33,40 @@ auto operator +(const Vector2D<T> &lhs, const Vector2D<U> &rhs)
   return {lhs.x + rhs.x, lhs.y + rhs.y};
 }
 
+template <typename T, typename U>
+auto operator -(const Vector2D<T> &lhs, const Vector2D<U> &rhs)
+    -> Vector2D<decltype(lhs.x - rhs.x)> {
+  return {lhs.x - rhs.x, lhs.y - rhs.y};
+}
+
 template <typename T>
 struct Rectangle {
   Vector2D<T> pos;
   Vector2D<T> size;
 };
+
+template <typename T, typename U>
+Rectangle<T> operator &(const Rectangle<T> &lhs, const Rectangle<U> &rhs) {
+  const auto lhs_end = lhs.pos + lhs.size;
+  const auto rhs_end = rhs.pos + rhs.size;
+
+  if (lhs_end.x < rhs.pos.x || lhs_end.y < rhs.pos.y ||
+      rhs_end.x < lhs.pos.x || rhs_end.y < lhs.pos.y) {
+    return {{0, 0}, {0, 0}};
+  }
+
+  Vector2D<int> new_pos = {
+    std::max(lhs.pos.x, rhs.pos.x),
+    std::max(lhs.pos.y, rhs.pos.y),
+  };
+
+  Vector2D<int> new_size = {
+    std::min(lhs_end.x, rhs_end.x) - new_pos.x,
+    std::min(lhs_end.y, rhs_end.y) - new_pos.y,
+  };
+
+  return {new_pos, new_size};
+}
 
 class PixelWriter {
  public:
