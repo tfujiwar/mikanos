@@ -31,7 +31,7 @@ void Console::NewLine() {
   } else {
     for (int y = 0; y < kRows * 16; ++y) {
       for (int x = 0; x < kColumns * 8; ++x) {
-        writer_->Write(x, y, bg_color_);
+        writer_->Write({x, y}, bg_color_);
       }
     }
     for (int row = 0; row < kRows; ++row) {

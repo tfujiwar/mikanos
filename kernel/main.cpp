@@ -264,7 +264,7 @@ extern "C" void KernelMainNewStack(
   }
 
   // Setup Layers
-  auto bgwindow = std::make_shared<Window>(kFrameWidth, kFrameHeight);
+  auto bgwindow = std::make_shared<Window>(kFrameWidth, kFrameHeight, frame_buffer_config.pixel_format);
   auto bgwriter = bgwindow->Writer();
 
   FillRectangle(*bgwriter, {0, 0}, {kFrameWidth, kFrameHeight - 50}, kDesktopBGColor);
@@ -272,14 +272,19 @@ extern "C" void KernelMainNewStack(
   FillRectangle(*bgwriter, {0, kFrameHeight - 50}, {kFrameWidth / 5, 50}, {80, 80, 80});
   DrawRectangle(*bgwriter, {10, kFrameHeight - 40}, {30, 30}, {160, 160, 160});
 
-  console->SetWriter(bgwriter);
-
-  auto mouse_window = std::make_shared<Window>(kMouseCursorWidth, kMouseCursorHeight);
+  auto mouse_window = std::make_shared<Window>(kMouseCursorWidth, kMouseCursorHeight, frame_buffer_config.pixel_format);
   mouse_window->SetTransparentColor(kMouseTransparentColor);
   DrawMouseCursor(mouse_window->Writer(), {0, 0});
 
+  FrameBuffer screen;
+  if (auto err = screen.Initialize(frame_buffer_config)) {
+    Log(kError, "failed to initialize frame buffer: %s at %s:%d\n", err.Name(), err.File(), err.Line());
+  }
+
+  console->SetWriter(bgwriter);
+
   layer_manager = new LayerManager;
-  layer_manager->SetWriter(pixel_writer);
+  layer_manager->SetWriter(&screen);
 
   auto bg_layer_id = layer_manager->NewLayer()
     .SetWindow(bgwindow)
