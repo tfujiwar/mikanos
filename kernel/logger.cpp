@@ -27,13 +27,6 @@ int Log(LogLevel level, const char *format, ...) {
   result = vsprintf(s, format, ap);
   va_end(ap);
 
-  StartLAPICTimer();
   console->PutString(s);
-  auto elapsed = LAPICTimerElapsed();
-  StopLAPICTimer();
-
-  sprintf(s, "[%9d] ", elapsed);
-  console->PutString(s);
-
   return result;
 }

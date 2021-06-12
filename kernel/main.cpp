@@ -84,7 +84,9 @@ extern "C" void KernelMainNewStack(
   InitializeMouse();
   layer_manager->Draw({{0, 0}, ScreenSize()});
 
-  InitializeLAPICTimer();
+  InitializeLAPICTimer(*main_queue);
+  timer_manager->AddTimer(Timer{200, 1});
+  timer_manager->AddTimer(Timer{400, 2});
 
   // Event loop
   char str[128];
@@ -94,7 +96,7 @@ extern "C" void KernelMainNewStack(
     const auto tick = timer_manager->CurrentTick();
     __asm__("sti");
 
-    sprintf(str, "%010u", tick);
+    sprintf(str, "%010lu", tick);
     FillRectangle(*main_window->Writer(), {24, 28}, {80, 16}, {0xc6, 0xc6, 0xc6});
     WriteString(*main_window->Writer(), {24, 28}, str, {0, 0, 0});
     layer_manager->Draw(main_window_layer_id);
@@ -113,8 +115,11 @@ extern "C" void KernelMainNewStack(
     case Message::kInterruptXHCI:
       usb::xhci::ProcessEvents();
       break;
-    case Message::kInterruptLAPICTimer:
-      printk("Timer interrupt\n");
+    case Message::kTimerTimeout:
+      printk("Timer: timeout=%lu, value=%d\n", msg.args.timer.timeout, msg.args.timer.value);
+      if (msg.args.timer.value > 0) {
+        timer_manager->AddTimer(Timer{msg.args.timer.timeout + 400, msg.args.timer.value});
+      }
       break;
     default:
       Log(kError, "Unknown message type: %d\n", msg.type);
