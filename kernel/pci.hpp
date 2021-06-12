@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include "error.hpp"
+#include "logger.hpp"
 
 namespace pci {
   const uint16_t kConfigAddress = 0x0cf8;
@@ -106,3 +107,5 @@ namespace pci {
       MSITriggerMode trigger_mode, MSIDeliveryMode delivery_mode,
       uint8_t vector, unsigned int num_vector_exponent);
 }
+
+void InitializePCI();
