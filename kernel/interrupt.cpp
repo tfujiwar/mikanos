@@ -3,6 +3,7 @@
 #include "asmfunc.h"
 #include "interrupt.hpp"
 #include "segment.hpp"
+#include "timer.hpp"
 
 std::array<InterruptDescriptor, 256> idt;
 
@@ -33,7 +34,7 @@ namespace {
 
   __attribute__((interrupt))
   void IntHandlerLAPICTimer(InterruptFrame *frame) {
-    msg_queue->push_back(Message{Message::kInterruptLAPICTimer});
+    LAPICTimerInterrupt();
     NotifyEndOfInterrupt();
   }
 }
