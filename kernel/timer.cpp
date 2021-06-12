@@ -61,8 +61,8 @@ void TimerManager::Tick() {
     }
 
     Message m{Message::kTimerTimeout};
-    m.args.timer.timeout = t.Timeout();
-    m.args.timer.value = t.Value();
+    m.arg.timer.timeout = t.Timeout();
+    m.arg.timer.value = t.Value();
     msg_queue_.push_back(m);
 
     timers_.pop();
