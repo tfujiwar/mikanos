@@ -44,6 +44,15 @@ void LayerManager::SetWriter(FrameBuffer *screen) {
   back_buffer_.Initialize(back_config);
 }
 
+Layer &Layer::SetDraggable(bool draggable) {
+  draggable_ = draggable;
+  return *this;
+}
+
+bool Layer::IsDraggable() const {
+  return draggable_;
+}
+
 Layer &LayerManager::NewLayer() {
   return *layers_.emplace_back(new Layer{++latest_id_});
 }

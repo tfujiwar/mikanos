@@ -13,6 +13,9 @@ class Layer {
   unsigned int ID() const;
 
   Layer &SetWindow(const std::shared_ptr<Window> &window);
+  Layer &SetDraggable(bool draggable);
+  bool IsDraggable() const;
+
   std::shared_ptr<Window> GetWindow() const;
   Vector2D<int> GetPosition() const;
 
@@ -25,6 +28,7 @@ class Layer {
   unsigned int id_;
   Vector2D<int> pos_;
   std::shared_ptr<Window> window_;  
+  bool draggable_{false};
 };
 
 class LayerManager {

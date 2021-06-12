@@ -73,9 +73,10 @@ void MouseObserver(uint8_t buttons, int8_t displacement_x, int8_t displacement_y
 
   const bool previous_left_pressed = (previous_buttons & 0x01);
   const bool left_pressed = (buttons & 0x01);
+
   if (!previous_left_pressed && left_pressed) {
     auto layer = layer_manager->FindLayerByPosition(mouse_pos, mouse_layer_id);
-    if (layer) {
+    if (layer && layer->IsDraggable()) {
       mouse_drag_layer_id = layer->ID();
     }
   } else if (previous_left_pressed && left_pressed) {
@@ -329,6 +330,7 @@ extern "C" void KernelMainNewStack(
 
   auto main_layer_id = layer_manager->NewLayer()
     .SetWindow(main_window)
+    .SetDraggable(true)
     .Move({200, 100})
     .ID();
 
@@ -363,8 +365,7 @@ extern "C" void KernelMainNewStack(
 
     __asm__("cli");
     if (main_queue.Count() == 0) {
-      // __asm__("sti\n\thlt");
-      __asm__("sti");
+      __asm__("sti\n\thlt");
       continue;
     }
 
