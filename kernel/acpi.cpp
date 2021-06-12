@@ -2,6 +2,7 @@
 #include <cstring>
 
 #include "acpi.hpp"
+#include "asmfunc.h"
 #include "logger.hpp"
 
 namespace {
@@ -92,5 +93,15 @@ size_t XSDT::Count() const {
 }
 
 const FADT *fadt;
+
+void WaitMilliseconds(unsigned long msec) {
+  const bool pm_timer_32 = (fadt->flags >> 8) & 1;
+  const uint32_t start = IoIn32(fadt->pm_tmr_blk);
+  uint32_t end = start + kPMTimerFreq * msec / 1000;
+  if (!pm_timer_32) {
+    end &= 0x00ffffffu;
+  }
+  while (IoIn32(fadt->pm_tmr_blk) < end);
+}
 
 } // namespace acpi
