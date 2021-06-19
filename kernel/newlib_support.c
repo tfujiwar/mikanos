@@ -1,4 +1,5 @@
 #include <errno.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 
 caddr_t program_break, program_break_end;
@@ -24,5 +25,35 @@ int getpid(void) {
 
 int kill(int pid, int sig) {
   errno = EINVAL;
+  return -1;
+}
+
+int close(int fd) {
+  errno = EBADF;
+  return -1;
+}
+
+off_t lseek(int fd, off_t offest, int whence) {
+  errno = EBADF;
+  return -1;
+}
+
+ssize_t read(int fd, void *buf, size_t count) {
+  errno = EBADF;
+  return -1;
+}
+
+ssize_t write(int fd, const void *buf, size_t count) {
+  errno = EBADF;
+  return -1;
+}
+
+int fstat(int fd, struct stat *buf) {
+  errno = EBADF;
+  return -1;
+}
+
+int isatty(int fd) {
+  errno = EBADF;
   return -1;
 }

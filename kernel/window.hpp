@@ -1,6 +1,7 @@
 #pragma once
 
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "graphics.hpp"
@@ -24,7 +25,7 @@ class Window {
   };
 
   Window(int width, int height, PixelFormat shadow_format);
-  ~Window() = default;
+  virtual ~Window() = default;
   Window(const Window &rhs) = delete;
   Window& operator=(const Window &rhs) = delete;
 
@@ -32,6 +33,9 @@ class Window {
   void Move(Vector2D<int> dst_pos, const Rectangle<int> &src);
 
   void SetTransparentColor(std::optional<PixelColor> c);
+
+  virtual void Activate() {}
+  virtual void Deactivate() {}
 
   WindowWriter *Writer();
 
@@ -51,5 +55,40 @@ class Window {
   FrameBuffer shadow_buffer_{};
 };
 
+class ToplevelWindow : public Window {
+ public:
+  static constexpr Vector2D<int> kTopLeftMargin{4, 24};
+  static constexpr Vector2D<int> kBottomRightMargin{4, 4};
+
+  class InnerAreaWriter : public PixelWriter {
+   public:
+    InnerAreaWriter(ToplevelWindow &window) : window_{window} {}
+    virtual void Write(Vector2D<int> pos, const PixelColor &c) override {
+      window_.Write(pos + kTopLeftMargin, c);
+    }
+    virtual int Width() const override {
+      return window_.Width() - kTopLeftMargin.x - kBottomRightMargin.x;
+    }
+    virtual int Height() const override {
+      return window_.Height() - kTopLeftMargin.y - kBottomRightMargin.y;
+    }
+
+   private:
+    ToplevelWindow &window_;
+  };
+
+  ToplevelWindow(int width, int height, PixelFormat shadow_format, const std::string &title);
+  virtual void Activate() override;
+  virtual void Deactivate() override;
+
+  InnerAreaWriter *InnerWriter() { return &inner_writer_; };
+  Vector2D<int> InnerSize() const;
+
+ private:
+  std::string title_;
+  InnerAreaWriter inner_writer_{*this};
+};
+
 void DrawWindow(PixelWriter &writer, const char *title);
 void DrawTextbox(PixelWriter &writer, Vector2D<int> pos, Vector2D<int> size);
+void DrawWindowTitle(PixelWriter &writer, const char *title, bool active);
