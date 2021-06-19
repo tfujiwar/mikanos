@@ -16,6 +16,8 @@ class Terminal {
   void DrawCursor(bool visible);
   Vector2D<int> CalcCursorPos() const;
   void Scroll1();
+  void Print(const char *s);
+  void ExecuteLine();
 
   std::shared_ptr<ToplevelWindow> window_;
   unsigned int layer_id_;
