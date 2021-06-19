@@ -17,9 +17,13 @@ Terminal::Terminal() {
       .ID();
 }
 
-void Terminal::BlinkCursor() {
+Rectangle<int> Terminal::BlinkCursor() {
   cursor_visible_ = !cursor_visible_;
   DrawCursor(cursor_visible_);
+  return {
+    ToplevelWindow::kTopLeftMargin + Vector2D<int>{4 + cursor_.x * 8, 5 + cursor_.y * 16},
+    {7, 15}
+  };
 }
 
 void Terminal::DrawCursor(bool visible) {
@@ -47,11 +51,11 @@ void TaskTerminal(uint64_t task_id, int64_t data) {
 
     switch (msg->type) {
     case Message::kTimerTimeout:
-      terminal->BlinkCursor();
       {
-        Message msg{Message::kLayer, task_id};
-        msg.arg.layer.layer_id = terminal->LayerID();
-        msg.arg.layer.op = LayerOperation::Draw;
+        const auto area = terminal->BlinkCursor();
+        Message msg = MakeLayerMessage(
+            task_id, terminal->LayerID(), LayerOperation::DrawArea, area);
+
         __asm__("cli");
         task_manager->SendMessage(1, msg);
         __asm__("sti");

@@ -132,8 +132,6 @@ Vector2D<int> Window::Size() const {
 }
 
 void DrawWindow(PixelWriter &writer, const char *title) {
-  Log(kError, "draw window\n");
-
   auto fill_rect = [&writer](Vector2D<int> pos, Vector2D<int> size, uint32_t c) {
     FillRectangle(writer, pos, size, ToColor(c));
   };
