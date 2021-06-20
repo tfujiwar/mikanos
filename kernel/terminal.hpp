@@ -18,6 +18,7 @@ class Terminal {
   void Scroll1();
   void Print(const char *s);
   void ExecuteLine();
+  Rectangle<int> HistoryUpDown(int direction);
 
   std::shared_ptr<ToplevelWindow> window_;
   unsigned int layer_id_;
@@ -25,6 +26,8 @@ class Terminal {
   bool cursor_visible_{false};
   int linebuf_index_{0};
   std::array<char, kLineMax> linebuf_{};
+  std::deque<std::array<char, kLineMax>> cmd_history_{};
+  int cmd_history_index_{-1};
 };
 
 void TaskTerminal(uint64_t task_id, int64_t data);
