@@ -9,6 +9,7 @@
 #include "acpi.hpp"
 #include "asmfunc.h"
 #include "console.hpp"
+#include "fat.hpp"
 #include "font.hpp"
 #include "frame_buffer_config.hpp"
 #include "graphics.hpp"
@@ -146,26 +147,11 @@ extern "C" void KernelMainNewStack(
   InitializeTask();
   Task &main_task = task_manager->CurrentTask();
 
+  fat::Initialize(volume_image);
   InitializePCI();
   usb::xhci::Initialize();
   InitializeKeyboard();
   InitializeMouse();
-
-  uint8_t *p = reinterpret_cast<uint8_t *>(volume_image);
-  printk("Volume Image: \n");
-  for (int i = 0; i < 16; ++i) {
-    printk("%04x:", i * 16);
-    for (int j = 0; j < 8; ++j) {
-      printk(" %02x", *p);
-      ++p;
-    }
-    printk(" ");
-    for (int j = 0; j < 8; ++j) {
-      printk(" %02x", *p);
-      ++p;
-    }
-    printk("\n");
-  }
 
   const uint64_t task_terminal_id = task_manager->NewTask()
       .InitContext(TaskTerminal, 0)
