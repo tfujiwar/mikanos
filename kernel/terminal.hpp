@@ -16,6 +16,7 @@ class Terminal {
   void DrawCursor(bool visible);
   Vector2D<int> CalcCursorPos() const;
   void Scroll1();
+  void Print(const char c);
   void Print(const char *s);
   void ExecuteLine();
   Rectangle<int> HistoryUpDown(int direction);
