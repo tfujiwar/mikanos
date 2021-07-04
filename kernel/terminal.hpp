@@ -19,6 +19,7 @@ class Terminal {
   void Print(const char c);
   void Print(const char *s);
   void ExecuteLine();
+  void ExecuteFile(const fat::DirectoryEntry &file_entry);
   Rectangle<int> HistoryUpDown(int direction);
 
   std::shared_ptr<ToplevelWindow> window_;
