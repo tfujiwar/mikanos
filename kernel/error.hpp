@@ -29,6 +29,8 @@ class Error {
     kNoPCIMSI,
     kUnknownPixelFormat,
     kNoSuchTask,
+    kInvalidFormat,
+    kFrameTooSmall,
     kLastOfCode,
   };
 
@@ -57,6 +59,8 @@ class Error {
     "kNoPCIMSI",
     "kUnknownPixelFormat",
     "kNoSuchTask",
+    "kInvalidFormat",
+    "kFrameTooSmall",
   };
 
  public:
